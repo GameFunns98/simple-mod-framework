@@ -46,6 +46,7 @@
     "prettier-eslint": "^15.0.1"
   },
   "scripts": {
+    "benchmark:logger": "node benchmarks/logger-benchmark.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": "compiled/main.js",

@@ -50,32 +50,43 @@ if (typeof config.developerMode === "undefined") {
 config.runtimePath = path.resolve(process.cwd(), config.runtimePath)
 config.retailPath = path.resolve(process.cwd(), config.retailPath)
 
-let deployLog = ""
+const deployLogPath = path.join(process.cwd(), "Deploy.log")
+let deployLogFile: number | undefined
+
+const writeDeployLog = (level: string, text: string, mod?: string) => {
+	if (typeof deployLogFile === "undefined") {
+		deployLogFile = fs.openSync(deployLogPath, "w")
+	}
+
+	fs.writeSync(deployLogFile, `\n${level}\t${mod || "Deploy"}\t${text}`)
+}
+
+const closeDeployLog = () => {
+	if (typeof deployLogFile !== "undefined") {
+		fs.closeSync(deployLogFile)
+		deployLogFile = undefined
+	}
+}
 
 const logger = args["--useConsoleLogging"]
 	? {
 			verbose: async (text: string, mod?: string) => {
-				deployLog += `\nDETAIL\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("DETAIL", text, mod)
 			},
 			debug: async (text: string, mod?: string) => {
-				deployLog += `\nDEBUG\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("DEBUG", text, mod)
 				console.debug("DEBUG", ...(mod ? [mod, text] : [text]))
 			},
 			info: async (text: string, mod?: string) => {
-				deployLog += `\nINFO\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("INFO", text, mod)
 				console.info("INFO", ...(mod ? [mod, text] : [text]))
 			},
 			warn: async (text: string, mod?: string) => {
-				deployLog += `\nWARN\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("WARN", text, mod)
 				console.warn("WARN", ...(mod ? [mod, text] : [text]))
 			},
 			error: async function (text: string, exitAfter = true, mod?: string) {
-				deployLog += `\nERROR\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("ERROR", text, mod)
 				console.log("ERROR", ...(mod ? [mod, text] : [text]))
 
 				if (mod) {
@@ -97,6 +108,7 @@ const logger = args["--useConsoleLogging"]
 
 					await Sentry.close()
 
+					closeDeployLog()
 					rpkgInstance.exit()
 					try {
 						// @ts-expect-error Assigning stuff on global is probably bad practice
@@ -108,8 +120,7 @@ const logger = args["--useConsoleLogging"]
 		}
 	: {
 			verbose: async function (text: string, mod?: string) {
-				deployLog += `\nDETAIL\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("DETAIL", text, mod)
 
 				if (args["--logLevel"]!.includes("verbose")) {
 					process.stdout.write(chalk(Object.assign([], { raw: [`{grey DETAIL${mod ? `\t${mod}` : ""}\t${text.replace(/\\/gi, "\\\\")}}\n`] })))
@@ -125,8 +136,7 @@ const logger = args["--useConsoleLogging"]
 			},
 
 			debug: async function (text: string, mod?: string) {
-				deployLog += `\nDEBUG\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("DEBUG", text, mod)
 
 				if (args["--logLevel"]!.includes("debug")) {
 					process.stdout.write(chalk(Object.assign([], { raw: [`{grey DEBUG${mod ? `\t${mod}` : ""}\t${text.replace(/\\/gi, "\\\\")}}\n`] })))
@@ -142,8 +152,7 @@ const logger = args["--useConsoleLogging"]
 			},
 
 			info: async function (text: string, mod?: string) {
-				deployLog += `\nINFO\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("INFO", text, mod)
 
 				if (args["--logLevel"]!.includes("info")) {
 					process.stdout.write(chalk(Object.assign([], { raw: [`{blue INFO}${mod ? `\t{magenta ${mod}}` : ""}\t${text.replace(/\\/gi, "\\\\")}\n`] })))
@@ -159,8 +168,7 @@ const logger = args["--useConsoleLogging"]
 			},
 
 			warn: async function (text: string, mod?: string) {
-				deployLog += `\nWARN\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("WARN", text, mod)
 
 				if (args["--logLevel"]!.includes("warn")) {
 					process.stdout.write(chalk(Object.assign([], { raw: [`{yellow WARN}${mod ? `\t{magenta ${mod}}` : ""}\t${text.replace(/\\/gi, "\\\\")}\n`] })))
@@ -176,8 +184,7 @@ const logger = args["--useConsoleLogging"]
 			},
 
 			error: async function (text: string, exitAfter = true, mod?: string) {
-				deployLog += `\nERROR\t${mod || "Deploy"}\t${text}`
-				fs.writeFileSync(path.join(process.cwd(), "Deploy.log"), deployLog)
+				writeDeployLog("ERROR", text, mod)
 
 				if (args["--logLevel"]!.includes("error")) {
 					process.stderr.write(chalk(Object.assign([], { raw: [`{red ERROR}${mod ? `\t{magenta ${mod}}` : ""}\t${text.replace(/\\/gi, "\\\\")}\n`] })))
@@ -201,6 +208,7 @@ const logger = args["--useConsoleLogging"]
 
 						await Sentry.close()
 
+						closeDeployLog()
 						rpkgInstance.exit()
 						try {
 							// @ts-expect-error Assigning stuff on global is probably bad practice
@@ -226,6 +234,7 @@ export default {
 
 		await Sentry.close()
 
+		closeDeployLog()
 		rpkgInstance.exit()
 		try {
 			// @ts-expect-error Assigning stuff on global is probably bad practice
