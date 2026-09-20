@@ -46,6 +46,8 @@
     "prettier-eslint": "^15.0.1"
   },
   "scripts": {
+    "test:deploy-cache": "node tests/deploy-cache.test.js",
+    "benchmark:deploy-cache": "node benchmarks/deploy-cache-benchmark.js",
     "benchmark:logger": "node benchmarks/logger-benchmark.js",
     "benchmark:manifest-cache": "node benchmarks/manifest-cache-benchmark.js",
     "benchmark:rpkg": "node benchmarks/rpkg-queue-benchmark.js",
