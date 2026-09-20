@@ -47,7 +47,9 @@
   },
   "scripts": {
     "benchmark:logger": "node benchmarks/logger-benchmark.js",
+    "benchmark:manifest-cache": "node benchmarks/manifest-cache-benchmark.js",
     "benchmark:rpkg": "node benchmarks/rpkg-queue-benchmark.js",
+    "test:manifest-cache": "node tests/manifest-cache.test.js",
     "test:rpkg": "node tests/rpkg-queue.test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

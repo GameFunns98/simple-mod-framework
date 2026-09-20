@@ -15,13 +15,13 @@ import type { Transaction } from "@sentry/tracing"
 import child_process from "child_process"
 import { crc32 } from "./crc32"
 import fs from "fs-extra"
-import json5 from "json5"
 import klaw from "klaw-sync"
 import md5 from "md5"
 import mergeWith from "lodash.mergewith"
 import os from "os"
 import path from "path"
 import { xxhash3 } from "hash-wasm"
+import { getManifestModFolder, readManifest, refreshManifestIndex } from "./manifest-cache"
 
 const deepMerge = function (x: any, y: any) {
 	return mergeWith(x, y, (orig, src) => {
@@ -70,6 +70,8 @@ export default async function deploy(
 		data: { hash: string; dependencies: string[]; affected: string[] }
 	}[]
 ) {
+	refreshManifestIndex()
+
 	if (fs.existsSync(path.join(process.cwd(), "cache", "rpkgHashCache.json"))) {
 		Object.assign(RPKGHashCache, Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(path.join(process.cwd(), "cache", "rpkgHashCache.json"), "utf8"))).map((a) => [a[0], [a[1], false]])))
 	}
@@ -142,9 +144,7 @@ export default async function deploy(
 			)
 		) {
 			// Find mod with ID in Mods folder, set the current mod to that folder
-			const foundMod = fs
-				.readdirSync(path.join(process.cwd(), "Mods"))
-				.find((a) => fs.existsSync(path.join(process.cwd(), "Mods", a, "manifest.json")) && json5.parse(fs.readFileSync(path.join(process.cwd(), "Mods", a, "manifest.json"), "utf8")).id === mod)
+			const foundMod = getManifestModFolder(mod)
 
 			if (!foundMod) {
 				await logger.error(`Could not resolve mod ${mod} to its folder in Mods!`)
@@ -191,7 +191,7 @@ export default async function deploy(
 
 			sentryModTransaction.finish()
 		} else {
-			const manifest: Manifest = json5.parse(fs.readFileSync(path.join(process.cwd(), "Mods", mod, "manifest.json"), "utf8"))
+			const manifest: Manifest = readManifest(path.join(process.cwd(), "Mods", mod, "manifest.json"))
 
 			const sentryModTransaction = sentryModsTransaction.startChild({
 				op: "analyse",
