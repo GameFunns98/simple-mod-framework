@@ -46,6 +46,13 @@
     "prettier-eslint": "^15.0.1"
   },
   "scripts": {
+    "test:deploy-cache": "node tests/deploy-cache.test.js",
+    "benchmark:deploy-cache": "node benchmarks/deploy-cache-benchmark.js",
+    "benchmark:logger": "node benchmarks/logger-benchmark.js",
+    "benchmark:manifest-cache": "node benchmarks/manifest-cache-benchmark.js",
+    "benchmark:rpkg": "node benchmarks/rpkg-queue-benchmark.js",
+    "test:manifest-cache": "node tests/manifest-cache.test.js",
+    "test:rpkg": "node tests/rpkg-queue.test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": "compiled/main.js",

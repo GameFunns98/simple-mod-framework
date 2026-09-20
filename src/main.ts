@@ -13,6 +13,7 @@ import core from "./core-singleton"
 import deploy from "./deploy"
 import difference from "./difference"
 import discover from "./discover"
+import { readDeployCache } from "./deploy-cache"
 import fs from "fs-extra"
 import md5File from "md5-file"
 import path from "path"
@@ -82,9 +83,11 @@ if (fs.existsSync(path.join(core.config.retailPath, "Runtime", "chunk0.rpkg"))) 
 	}
 }
 
-core.config.platform = fs.existsSync(path.join(core.config.retailPath, "Runtime", "chunk0.rpkg"))
-	? gameHashes[md5File.sync(path.join(core.config.retailPath, "..", "MicrosoftGame.Config"))]
-	: gameHashes[md5File.sync(path.join(core.config.runtimePath, "..", "Retail", "HITMAN3.exe"))] // Platform detection
+// The running deployment uses one game version for platform detection and cache metadata.
+const gameHash = fs.existsSync(path.join(core.config.retailPath, "Runtime", "chunk0.rpkg"))
+	? md5File.sync(path.join(core.config.retailPath, "..", "MicrosoftGame.Config"))
+	: md5File.sync(path.join(core.config.runtimePath, "..", "Retail", "HITMAN3.exe"))
+core.config.platform = gameHashes[gameHash] // Platform detection
 
 let sentryTransaction = {
 	startChild(...args) {
@@ -193,12 +196,7 @@ async function doTheThing() {
 		// 	scope.setSpan(sentryTransaction)
 		// })
 
-		Sentry.setTag(
-			"game_hash",
-			fs.existsSync(path.join(core.config.retailPath, "Runtime", "chunk0.rpkg"))
-				? md5File.sync(path.join(core.config.retailPath, "..", "MicrosoftGame.Config"))
-				: md5File.sync(path.join(core.config.runtimePath, "..", "Retail", "HITMAN3.exe"))
-		)
+		Sentry.setTag("game_hash", gameHash)
 	}
 
 	await core.logger.verbose("Initialising RPKG instance")
@@ -237,28 +235,16 @@ async function doTheThing() {
 	fs.ensureDirSync(path.join(process.cwd(), "cache"))
 
 	await core.logger.verbose("Checking cache versions")
-	if (fs.existsSync(path.join(process.cwd(), "cache", "map.json"))) {
-		if (
-			fs.readJSONSync(path.join(process.cwd(), "cache", "map.json")).frameworkVersion < core.FrameworkVersion ||
-			fs.readJSONSync(path.join(process.cwd(), "cache", "map.json")).game !==
-				(fs.existsSync(path.join(core.config.retailPath, "Runtime", "chunk0.rpkg"))
-					? md5File.sync(path.join(core.config.retailPath, "..", "MicrosoftGame.Config"))
-					: md5File.sync(path.join(core.config.runtimePath, "..", "Retail", "HITMAN3.exe")))
-		) {
-			fs.emptyDirSync(path.join(process.cwd(), "cache")) // Empty the cache when the framework or game updates
-		}
-	}
+	const previousFiles = readDeployCache(path.join(process.cwd(), "cache"), core.FrameworkVersion, gameHash)
 
 	await core.logger.verbose("Beginning difference")
-	const { invalidData } = await difference(fs.existsSync(path.join(process.cwd(), "cache", "map.json")) ? fs.readJSONSync(path.join(process.cwd(), "cache", "map.json")).files : {}, fileMap)
+	const { invalidData } = await difference(previousFiles, fileMap)
 
 	await core.logger.verbose("Writing cache")
 	fs.writeJSONSync(path.join(process.cwd(), "cache", "map.json"), {
 		files: fileMap,
 		frameworkVersion: core.FrameworkVersion,
-		game: fs.existsSync(path.join(core.config.retailPath, "Runtime", "chunk0.rpkg"))
-			? md5File.sync(path.join(core.config.retailPath, "..", "MicrosoftGame.Config"))
-			: md5File.sync(path.join(core.config.runtimePath, "..", "Retail", "HITMAN3.exe"))
+		game: gameHash
 	})
 
 	await core.logger.verbose("Beginning deploy")

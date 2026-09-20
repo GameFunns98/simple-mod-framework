@@ -6,7 +6,6 @@ import { FrameworkVersion, config, logger, rpkgInstance } from "./core-singleton
 import { type Manifest, OptionType, ModScript } from "./types"
 import mergeWith from "lodash.mergewith"
 import fs from "fs-extra"
-import json5 from "json5"
 import klaw from "klaw-sync"
 import { md5 } from "hash-wasm"
 import path from "path"
@@ -15,6 +14,7 @@ import { xxhash3 } from "hash-wasm"
 import { ModuleKind, ScriptTarget } from "typescript"
 import { compileExpression, useDotAccessOperatorAndOptionalChaining } from "filtrex"
 import { normaliseToHash } from "./utils"
+import { getManifestModFolder, readManifest, refreshManifestIndex } from "./manifest-cache"
 
 const deepMerge = function (x: any, y: any) {
 	return mergeWith(x, y, (orig, src) => {
@@ -26,6 +26,7 @@ const deepMerge = function (x: any, y: any) {
 
 export default async function discover(): Promise<{ [x: string]: { hash: string; dependencies: string[]; affected: string[] } }> {
 	await logger.info("Discovering mod contents")
+	refreshManifestIndex()
 
 	const fileMap: { [x: string]: { hash: string; dependencies: Array<string>; affected: Array<string> } } = {}
 
@@ -62,9 +63,7 @@ export default async function discover(): Promise<{ [x: string]: { hash: string;
 			)
 		) {
 			// Find mod with ID in Mods folder, set the current mod to that folder
-			const foundMod = fs
-				.readdirSync(path.join(process.cwd(), "Mods"))
-				.find((a) => fs.existsSync(path.join(process.cwd(), "Mods", a, "manifest.json")) && json5.parse(fs.readFileSync(path.join(process.cwd(), "Mods", a, "manifest.json"), "utf8")).id === mod)
+			const foundMod = getManifestModFolder(mod)
 
 			if (!foundMod) {
 				await logger.error(`Could not resolve mod ${mod} to its folder in Mods!`)
@@ -99,7 +98,7 @@ export default async function discover(): Promise<{ [x: string]: { hash: string;
 				}
 			}
 		} else {
-			const manifest: Manifest = json5.parse(fs.readFileSync(path.join(process.cwd(), "Mods", mod, "manifest.json"), "utf8"))
+			const manifest: Manifest = readManifest(path.join(process.cwd(), "Mods", mod, "manifest.json"))
 
 			await logger.info(`Discovering mod: ${manifest.name}`)
 
