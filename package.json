@@ -47,6 +47,8 @@
   },
   "scripts": {
     "benchmark:logger": "node benchmarks/logger-benchmark.js",
+    "benchmark:rpkg": "node benchmarks/rpkg-queue-benchmark.js",
+    "test:rpkg": "node tests/rpkg-queue.test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": "compiled/main.js",
